@@ -18,12 +18,11 @@ fmtname(char *path)
   if(strlen(p) >= DIRSIZ)
     return p;
   memmove(buf, p, strlen(p));
-  memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
+  buf[strlen(p)] = 0;
   return buf;
 }
 
-void
-ls(char *path)
+void find(char *target,char *path)
 {
   char buf[512], *p;
   int fd;
@@ -41,46 +40,39 @@ ls(char *path)
     return;
   }
 
-  switch(st.type){
-  case T_FILE:
-    printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
-    break;
-
-  case T_DIR:
-    if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
+  if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
       printf("ls: path too long\n");
-      break;
     }
-    strcpy(buf, path);
-    p = buf+strlen(buf);
-    *p++ = '/';
-    while(read(fd, &de, sizeof(de)) == sizeof(de)){
+  strcpy(buf, path);
+  p = buf+strlen(buf);
+  *p++ = '/';
+  while(read(fd, &de, sizeof(de)) == sizeof(de)){
       if(de.inum == 0)
         continue;
+      if(!strcmp(de.name, ".") || !strcmp(de.name, "..")) continue;
       memmove(p, de.name, DIRSIZ);
       p[DIRSIZ] = 0;
       if(stat(buf, &st) < 0){
         printf("ls: cannot stat %s\n", buf);
         continue;
-      } 
-      printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+      }
+      if(st.type == 1) {
+        find(target, buf);
+      }else {
+        if(strcmp(fmtname(buf), target) == 0)  printf("%s\n", buf);
+      }
     }
-    break;
-  }
   close(fd);
+  return ;   
+
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  int i;
-
-  if(argc < 2){
-    ls(".");
-    exit(0);
+  if(argc < 3){
+    printf("error");
+    exit(1);
   }
-  for(i=1; i<argc; i++) {
-    ls(argv[i]);
-  }
-  exit(0);
+  find(argv[2], argv[1]);
+  exit(0);    
 }
